@@ -1,0 +1,236 @@
+{% extends 'layouts/main.html' %}
+{% block title %}
+Dashboard
+{% endblock %}
+
+{% load static %}
+{% block style %}
+<link rel="stylesheet" type="text/css" href="{% static 'vendors/css/tables/datatable/datatables.min.css' %}">
+
+<style>
+    table td, th{
+        font-size: 12px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <section class="basic-elements">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h4 class="card-title mb-0"><i class="ft-bar-chart-2 mr-2"></i>{{currency.name}}({{currency.symbol}})</h4>
+                            </div>
+                        </div>
+                        <form action="{% url 'main:detail' currency.pk %}" method="GET">
+                            <div class="row mt-2">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>Start</label>
+                                        <input type="date" class="form-control" name="startDate" value="{% if content.startDate %}{{content.startDate}}{% endif %}">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>End</label>
+                                        <input type="date" class="form-control" name="endDate" value="{% if content.startDate %}{{content.endDate}}{% endif %}">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>Timeframe</label>
+                                        <select class="form-control" name="timeFrame" id="timeFrame">
+                                            <option value="15m" {% if content.timeFrame == '15m' %}selected{% endif %}>15m</option>
+                                            <option value="30m" {% if content.timeFrame == '30m' %}selected{% endif %}>30m</option>
+                                            <option value="60m" {% if content.timeFrame == '60m' %}selected{% endif %}>60m</option>
+                                            <option value="90m" {% if content.timeFrame == '90m' %}selected{% endif %}>90m</option>
+                                            <option value="1h" {% if content.timeFrame == '1h' %}selected{% endif %}>1h</option>
+                                            <option value="1d" {% if content.timeFrame == '1d' %}selected{% endif %}>1d</option>
+                                            <option value="5d" {% if content.timeFrame == '5d' %}selected{% endif %}>5d</option>
+                                            <option value="1w" {% if content.timeFrame == '1w' %}selected{% endif %}>1wk</option>
+                                            <option value="1mo" {% if content.timeFrame == '1mo' %}selected{% endif %}>1mo</option>
+                                            <option value="3mo" {% if content.timeFrame == '3mo' %}selected{% endif %}>3mo</option>
+                                            <option value="6mo" {% if content.timeFrame == '6mo' %}selected{% endif %}>6mo</option>
+                                            <option value="1y" {% if content.timeFrame == '1y' %}selected{% endif %}>1y</option>
+                                            <option value="2y" {% if content.timeFrame == '2y' %}selected{% endif %}>2y</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>&nbsp;</label>
+                                        <br>
+                                        <button type="submit" class="btn btn-primary">Apply</button>
+                                    </div>
+                                </div>
+    
+                            </div>
+                                    
+                        </form>
+                    </div>
+                    <div class="card-content mt-1">
+                        <div class="px-3">
+                            <div class="card-body chartjs">
+                                <canvas id="line-chart" height="400"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+
+{% block script %}
+<script src="{% static 'js/bootstrap-tagsinput.js' %}" type="text/javascript"></script>
+<script src="{% static 'vendors/js/datatable/datatables.min.js' %}" type="text/javascript"></script>
+<script src="{% static 'vendors/js/chart.min.js' %}" type="text/javascript"></script>
+<script>
+    $(document).ready(function(){
+        var timeFrame = $("#timeFrame").val();
+        var data = '{{data}}';
+        data = data.replace(/&quot;/g,'"');
+        console.log(data);
+        var jsonData = JSON.parse(data);
+        console.log(jsonData);
+        var graphData  = [];
+        var graphPerData  = [];
+        var labels = [];
+        for(let i = 0; i < jsonData.length; i ++){
+            let row = jsonData[i].fields;
+            // rowData['change'] = row['1_'+timeFrame+'_change'];
+            // rowData['per'] = row['1_'+timeFrame+'_per'];
+            // rowData['change'] = row['1_'+timeFrame+'_change'];
+            // rowData['price'] = row['1_'+timeFrame+'_price'];
+            // rowData['prev'] = row['1_'+timeFrame+'_prev'];
+            let createdAt = row['created_at'];
+            createdAt = createdAt.substring(0,createdAt.length - 5);
+            createdAt = createdAt.replace('T',' ');
+            graphData.push(row['l_'+timeFrame+'_change']);
+            graphPerData.push(row['l_'+timeFrame+'_per']);
+            labels.push(createdAt)
+        }
+        if(jsonData.length){
+            drawGraph(labels,graphData,graphPerData);
+        }
+
+        function drawGraph(labels,graphData,graphPerData){
+            console.log('labels',labels)
+            console.log('graphData',graphData)
+
+
+            var ctx = $("#line-chart");
+
+
+            // Chart Options
+            var chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                legend: {
+                    position: 'bottom',
+                },
+                hover: {
+                    mode: 'label'
+                },
+                scales: {
+                    xAxes: [{
+                        display: true,
+                        gridLines: {
+                            color: "#f3f3f3",
+                            drawTicks: false,
+                        },
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Date And Time'
+                        }
+                    }],
+                    yAxes: [{
+                        id:'A',
+                        display: true,
+                        gridLines: {
+                            color: "#f3f3f3",
+                            drawTicks: false,
+                        },
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Change Price'
+                        }
+                    },
+                    {
+                        id:'B',
+                        display: true,
+                        gridLines: {
+                            color: "#a9ff00de",
+                            drawTicks: false,
+                        },
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Change Percent'
+                        }
+                    }]
+                },
+                title: {
+                    display: true,
+                    text: 'Price Tracker Graph'
+                }
+            };
+
+            // Chart Data
+            var chartData = {
+                labels: labels,
+                datasets: [
+                    {
+                    label: "Changes",
+                    yAxisID: 'A',
+                    data: graphData,
+                    fill: false,
+                    borderDash: [5, 5],
+                    borderColor: "#9C27B0",
+                    pointBorderColor: "#9C27B0",
+                    pointBackgroundColor: "#FFF",
+                    pointBorderWidth: 2,
+                    pointHoverBorderWidth: 2,
+                    pointRadius: 4,
+                },
+                {
+                    label: "Change%",
+                    yAxisID: 'B',
+                    data: graphPerData,
+                    fill: false,
+                    borderDash: [5, 5],
+                    borderColor: "#00A5A8",
+                    pointBorderColor: "#00A5A8",
+                    pointBackgroundColor: "#FFF",
+                    pointBorderWidth: 2,
+                    pointHoverBorderWidth: 2,
+                    pointRadius: 4,
+                }
+                ]
+            };
+
+            var config = {
+                type: 'line',
+
+                // Chart Options
+                options: chartOptions,
+
+                data: chartData
+            };
+
+            // Create the chart
+            var lineChart = new Chart(ctx, config);        
+        }
+
+
+
+
+    });
+</script>
+{% endblock %}
